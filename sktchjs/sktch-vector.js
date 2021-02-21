@@ -2,7 +2,7 @@
 	VECTOR.js – microbians.com
 	Math extensions for vector operations
 ********************************************************/
-
+ 
 // Vector/Point Class
 class Vector {
 	constructor(x, y) {

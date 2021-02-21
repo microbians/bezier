@@ -2,7 +2,7 @@
 	CANVAS.js – microbians.com
 	Create sets of layers with Stage
 ********************************************************/
-
+ 
 class Stage{
 	constructor(stageOptions) {
 

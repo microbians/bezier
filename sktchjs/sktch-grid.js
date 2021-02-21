@@ -3,7 +3,7 @@
 	for collision detection & all the s**t
 	- microbians.com
 ********************************************************/
-
+  
 class Grid {
 	constructor(width, height, divider) {
 		this.divider = divider;

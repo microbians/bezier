@@ -2,7 +2,7 @@
 	MATH.js – microbians.com
 	Math extensions + Bezier extensions
 ********************************************************/
-
+ 
 // Global isNum -> Double check is number
 IsNum=function(n) {
 		if (((Number(typeof n)).toString()== "NaN")&&((Number(n+"")).toString()== "NaN")) return false

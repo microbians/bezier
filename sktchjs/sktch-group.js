@@ -2,7 +2,7 @@
 	CANVAS.js – microbians.com
 	Create canvas and all the s**t
 ********************************************************/
-
+ 
 class Group {
 	constructor(id) {
 		this.type = 'Group';

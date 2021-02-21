@@ -2,7 +2,7 @@
 	BoundingBox
 	- microbians.com
 ********************************************************/
-
+ 
 class BoundingBox {
 	constructor(box, data) {
 		if (box) this.set(box);

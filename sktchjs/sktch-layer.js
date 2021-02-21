@@ -2,7 +2,7 @@
 	CANVAS.js – microbians.com
 	Layer structure that holds objects and the canvas itself as extends Canvas (not he context)
 ********************************************************/
-
+ 
 class Layer extends Canvas {
 	constructor(layerOptions) {
 		//x, y, w, h, RETINA, FAKEAA = 0, grid = false, debug=false) {

@@ -1,5 +1,5 @@
 // Misc functions and addons
-
+ 
 // Old fashion Flash
 // Simple console.log();
 log   = console.log;

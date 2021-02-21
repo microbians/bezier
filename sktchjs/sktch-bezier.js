@@ -2,7 +2,7 @@
 	QUADBEZIER.js – microbians.com
 	Math extensions bezier operations
 ********************************************************/
-
+ 
 // Check my math docs about it
 // https://microbians.com/math/Gabriel_Suchowolski_Quadratic_bezier_offsetting_with_selective_subdivision.pdf
 // https://microbians.com/math/Gabriel_Suchowolski_Quadratic_bezier_through_three_points_and_the_-equivalent_quadratic_bezier_(theorem)-.pdf

@@ -2,7 +2,7 @@
 	CANVAS.js – microbians.com
 	Create canvas and all the s**t
 ********************************************************/
-
+ 
 class Path {
 	constructor() {
 		this.type = 'Path';

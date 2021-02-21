@@ -2,7 +2,7 @@
 	FPS Counter
 	- microbians.com
 ********************************************************/
-
+ 
 class FPS {
 	constructor(elm) {
 		if (elm) {

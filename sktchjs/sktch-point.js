@@ -6,7 +6,7 @@
 	v1.1. Added cross & dot product
 	v1.2. Added better pass variable names as an object
 ********************************************************/
-
+ 
 class Point {
 	constructor(x,y) {
 		if (x != undefined) {
