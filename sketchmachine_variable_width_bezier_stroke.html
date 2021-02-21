@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>The Electronic Sketchbook by microbians</title>
+
+	<script src="sktchjs/sktch-misc.js"></script>
+	<script src="sktchjs/sktch-ticker.js"></script>
+	<script src="sktchjs/sktch-math.js"></script>
+	<!--<script src="sktchjs/sktch-point.js"></script>-->
+	<script src="sktchjs/sktch-vector.js"></script>
+	<script src="sktchjs/sktch-bezier.js"></script>
+	<script src="sktchjs/sktch-boundingbox.js"></script>
+	<script src="sktchjs/sktch-grid.js"></script>
+	<script src="sktchjs/sktch-path.js"></script>
+	<script src="sktchjs/sktch-canvas.js"></script>
+	<script src="sktchjs/sktch-layer.js"></script>
+	<script src="sktchjs/sktch-stage.js"></script>
+	<script src="sktchjs/sktch-fps.js"></script>
+
+<script type="text/javascript">
+	var layer,layerWithAlpha;
+
+	var layerNum=0;
+
+	var np;
+	var op;
+
+	var p1;
+	var pc;
+	var p2;
+
+	var stroke=[];
+
+	var brush = {
+		min:1,
+		max:30,
+		limiter: 1000,
+		friction: 1.3
+	};
+
+	var d=0;
+	var acc=0;
+
+	var drops=1; // Drops level
+	var flow=1;  // Stroke flow (efecto de presion mediante la aceleración)
+
+	var strokes = [];
+	var draw=false;
+	var shiftKey=false;
+	var controlKey=false;
+
+	var canvasWidth=1024;
+	var canvasHeight=900;
+
+	window.mouse={x:0,y:0};
+
+	ACCURATE=60;
+	ACCURATEcurr=0;
+
+	function keyPressed(event) {
+		if (event.shiftKey) 	shiftKey=true; 		else 	shiftKey=false;
+		if (event.ctrlKey) 		controlKey=true;	else 	controlKey=false;
+	}
+	window.addEventListener('keydown',keyPressed,false);
+	window.addEventListener('keyup'  ,keyPressed,false);
+
+	function init() {
+		layer = new Layer({
+			x:0,
+			y:0,
+			w:window.innerWidth,
+			h:window.innerHeight,
+			debug:false
+		});
+		layer.appendTo( document.body );
+		layerWithAlpha  = new Layer({
+			x:0,
+			y:0,
+			w:window.innerWidth,
+			h:window.innerHeight,
+			debug:false
+		});
+		layerWithAlpha.appendTo( document.body );
+		layerWithAlpha.domElm.style.opacity=1;
+
+		let tickFPS = new FPS('fps');
+		render = function() {
+			if (draw) {
+				drawing();
+			}
+			tickFPS.update();
+			setTimeout(render,1000/120);
+		}
+		render();
+
+		updateMouseEvent = function() {
+			window.mouse = new Vector( event.clientX - layer.x/layer.RETINA, event.clientY - layer.y/layer.RETINA);
+		}
+
+		window.addEventListener("mousedown", 	startDraw);
+		window.addEventListener("mouseup", 		stopDraw);
+		window.addEventListener("mousemove", 	updateMouseEvent);
+	}
+
+	function startDraw(event) {
+		updateMouseEvent(event);
+
+		stroke = []; // 0
+		d=brush.min;
+
+		drawing();
+		draw=true;
+	}
+
+	function drawing(last) {
+
+		var newPos = new Vector( window.mouse.x, window.mouse.y );
+
+		if (!last) {
+			// Controla el tiempo entre trazos para no crear más de los necesarios
+			var curTime=new Date().getTime();
+			if ( curTime < ACCURATEcurr+1000/ACCURATE ) 	{
+				return;
+			} else ACCURATEcurr=curTime;
+
+			if ( stroke.last() && Math.distance(stroke.last().p, newPos)<4 ) {
+				return;  // Don't draw if not movement
+			}
+		}
+
+		stroke.push({
+			p: newPos,
+			d: d
+		});// 1 ... n
+
+		if(stroke.length<3) {
+			return;
+		}
+
+		stroke.last().p = stroke.prior().p.lrp( stroke.last().p,.8); // Smooth positions
+
+		if (last) { // last Stroke
+
+			var p1 = stroke.in(-2).p.med( stroke.prior().p );
+			var pc = stroke.prior().p;
+			var p2 = stroke.last().p;
+
+		} else if (stroke.length==3) { // first stroke can be drawn
+
+			var p1 = stroke.in(-2).p;
+			var pc = stroke[1].p;
+			var p2 = stroke[1].p.med( stroke[2].p );
+
+		} else {
+
+			var p1 = stroke.in(-2).p.med( stroke.prior().p );
+			var pc = stroke.prior().p;
+			var p2 = stroke.last().p.med( stroke.prior().p );
+
+		}
+		var np = stroke.last().p;
+
+
+		var strokeDistance = Math.distance2(p1,pc)+Math.distance2(pc,p2);
+
+		if (stroke.length==3) {
+			acc = strokeDistance / brush.limiter;
+		}
+
+		acc += strokeDistance / brush.limiter;
+		acc = acc / brush.friction;
+		d = Math.lerp(stroke.prior().d, Math.clamp(Math.lerp( brush.min, brush.max, 1/acc), brush.min, brush.max), .4);
+
+		stroke.last().d = d;
+
+		var b  = new QuadBezier(p1,pc,p2);
+
+		var t  = b.closestTtoPc();
+		var pt = b.getPointAtT(t);
+
+		//layerWithAlpha.canvas.globalCompositeOperation = "destination-atop";
+
+		var strokeWeight = stroke.prior().d;
+		var p1n = b.normalUnitVectorAtT(0);
+		var p1L = p1.add( p1n.mul(+strokeWeight/2) );
+		var p1R = p1.add( p1n.mul(-strokeWeight/2) );
+
+		var strokeWeight = Math.lerp(stroke.prior().d, stroke.last().d, t);
+		var ptn = b.normalUnitVectorAtT(t);
+		var ptL = pt.add( ptn.mul(+strokeWeight/2) );
+		var ptR = pt.add( ptn.mul(-strokeWeight/2) );
+
+		var strokeWeight = stroke.last().d;
+		var p2n = b.normalUnitVectorAtT(1);
+		var p2L = p2.add( p2n.mul(+strokeWeight/2) );
+		var p2R = p2.add( p2n.mul(-strokeWeight/2) );
+
+		if (Math.abs(b.angDegrees())<120) { // IF the angle is closed
+
+			var p1c  = b.getControlPointOfASegment(0,t);
+			var b1   = new QuadBezier(p1,p1c,pt);
+			var p1m  = p1n.add(ptn);
+			var p1t  = Math.lerp( 0,t, b1.closestTtoPc() ); // Interpolate over 0-t (original bezier b) the t of p1 p1c pt
+			var strokeWeight = Math.lerp(stroke.prior().d, stroke.last().d, p1t); // Use that t to know the weight on that point
+			var p1cL = p1c.add( p1m.mul( +strokeWeight/p1m.length2() ) ); // Expand with that strokeWeight the bezier stroke
+			var p1cR = p1c.add( p1m.mul( -strokeWeight/p1m.length2() ) );
+
+			var p2c  = b.getControlPointOfASegment(t,1);
+			var b2   = new QuadBezier(pt,p2c,p2);
+			var p2m  = ptn.add(p2n);
+			var p2t  = Math.lerp( t,1, b2.closestTtoPc() );
+			var strokeWeight = Math.lerp(stroke.prior().d, stroke.last().d, p2t);
+			var p2cL = p2c.add( p2m.mul( +strokeWeight/p2m.length2() ) );
+			var p2cR = p2c.add( p2m.mul( -strokeWeight/p2m.length2() ) );
+
+			layerWithAlpha.canvas.strokeStyle="red";
+			layerWithAlpha.canvas.strokeWeight=2;
+			layerWithAlpha.canvas.fillStyle="black";
+			layerWithAlpha.canvas.beginPath();
+			layerWithAlpha.canvas.moveTo(p1L);
+			layerWithAlpha.canvas.quadraticCurveTo(p1cL, ptL);
+			layerWithAlpha.canvas.lineTo(ptR);
+			layerWithAlpha.canvas.quadraticCurveTo(p1cR, p1R);
+			layerWithAlpha.canvas.closePath();
+			layerWithAlpha.canvas.fill();
+//			layerWithAlpha.canvas.stroke();
+
+			layerWithAlpha.canvas.beginPath();
+			layerWithAlpha.canvas.moveTo(p2L);
+			layerWithAlpha.canvas.quadraticCurveTo(p2cL, ptL);
+			layerWithAlpha.canvas.lineTo(ptR);
+			layerWithAlpha.canvas.quadraticCurveTo(p2cR, p2R);
+			layerWithAlpha.canvas.closePath();
+			layerWithAlpha.canvas.fill();
+//			layerWithAlpha.canvas.stroke();
+
+		} else {
+			ptm  = p1n.add(p2n);
+			var strokeWeight = Math.lerp(stroke.prior().d, stroke.last().d, t);
+			ptcL = pc.add( ptm.mul( +strokeWeight/ptm.length2() ) );
+			ptcR = pc.add( ptm.mul( -strokeWeight/ptm.length2() ) );
+
+			layerWithAlpha.canvas.strokeStyle="red";
+			layerWithAlpha.canvas.strokeWeight=2;
+			layerWithAlpha.canvas.strokeStyle=undefined;
+			layerWithAlpha.canvas.fillStyle="black";
+			layerWithAlpha.canvas.beginPath();
+			layerWithAlpha.canvas.moveTo(p1L);
+			layerWithAlpha.canvas.quadraticCurveTo(ptcL, p2L);
+			layerWithAlpha.canvas.lineTo(p2R);
+			layerWithAlpha.canvas.quadraticCurveTo(ptcR, p1R);
+			layerWithAlpha.canvas.closePath();
+			layerWithAlpha.canvas.fill();
+//			layerWithAlpha.canvas.stroke();
+		}
+
+	}
+
+	function stopDraw(event) {
+
+		updateMouseEvent(event);
+		draw=false;
+
+		layer.canvas.globalAlpha = layerWithAlpha.domElm.style.opacity;
+		layer.copy(layerWithAlpha);
+		layer.canvas.globalAlpha = 1;
+		layer.canvas.globalCompositeOperation = "source-over";
+		layerWithAlpha.canvas.clearRect(0, 0, layerWithAlpha.w, layerWithAlpha.h);
+
+		d=brush.min;
+		acc=1000;
+		drawing(true); //Last
+	}
+
+	window.ready(init);
+
+</script>
+<style>
+	* {
+		margin: 0;
+		padding: 0;
+		  -webkit-user-select: none; /* Safari */
+		   -khtml-user-select: none; /* Konqueror HTML */
+			 -moz-user-select: none; /* Firefox */
+			  -ms-user-select: none; /* Internet Explorer/Edge */
+				  user-select: none; /* Non-prefixed version, currently supported by Chrome and Opera */
+	}
+	body {
+		overflow: hidden;
+		background-color: white;
+		font-family: sans-serif;
+	}
+	canvas {
+		border: 1px solid #f0f0f0;
+	}
+	#fps {
+		position: absolute;
+		font-weight: bold;
+		font-size: 16px;
+		left:10px;
+		top:10px;
+	}
+	.littletext{
+		position: absolute;
+		font-weight: normal;
+		font-size: 16px;
+		bottom: 10px;
+		left:10px;
+	}
+</style>
+</head>
+
+</head>
+<body>
+	<div id="debug"></div>
+	<div id="fps"></div>
+	<div class="littletext">Demonstration of the variable bezier strokes by offseting a quad bezier path.<br/>
+	Math papers at <a href="https://microbians.com/math">https://microbians.com/math</a></div>
+</body>
+</html>
