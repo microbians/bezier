@@ -1,0 +1,31 @@
+* {
+	margin: 0;
+	padding: 0;
+	  -webkit-user-select: none; /* Safari */
+	   -khtml-user-select: none; /* Konqueror HTML */
+		 -moz-user-select: none; /* Firefox */
+		  -ms-user-select: none; /* Internet Explorer/Edge */
+			  user-select: none; /* Non-prefixed version, currently supported by Chrome and Opera */
+}
+body {
+	overflow: hidden;
+	background-color: white;
+	font-family: sans-serif;
+}
+canvas {
+	border: 1px solid #f0f0f0;
+}
+#fps {
+	position: absolute;
+	font-weight: bold;
+	font-size: 16px;
+	left:10px;
+	top:10px;
+}
+.littletext{
+	position: absolute;
+	font-weight: normal;
+	font-size: 16px;
+	bottom: 10px;
+	left:10px;
+}

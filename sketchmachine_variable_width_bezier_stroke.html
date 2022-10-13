@@ -2,319 +2,101 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8">
-	<title>The Electronic Sketchbook by microbians</title>
+	<title>The Electronic Sketchbook by microbians - Variable bezier offseting test</title>
 
-	<script src="sktchjs/sktch-misc.js"></script>
-	<script src="sktchjs/sktch-ticker.js"></script>
-	<script src="sktchjs/sktch-math.js"></script>
-	<script src="sktchjs/sktch-vector.js"></script>
-	<script src="sktchjs/sktch-bezier.js"></script>
-	<script src="sktchjs/sktch-boundingbox.js"></script>
-	<script src="sktchjs/sktch-grid.js"></script>
-	<script src="sktchjs/sktch-path.js"></script>
-	<script src="sktchjs/sktch-canvas.js"></script>
-	<script src="sktchjs/sktch-layer.js"></script>
-	<script src="sktchjs/sktch-stage.js"></script>
-	<script src="sktchjs/sktch-fps.js"></script>
+	<link rel="stylesheet" href="sketchmachine_variable_width_bezier_stroke.css">
 
-<script type="text/javascript">
-	var layer,layerWithAlpha;
-
-	var layerNum=0;
-
-	var np;
-	var op;
-
-	var p1;
-	var pc;
-	var p2;
-
-	var stroke=[];
-
-	var brush = {
-		min:1,
-		max:30,
-		limiter: 1000,
-		friction: 1.3
-	};
-
-	var d=0;
-	var acc=0;
-
-	var drops=1; // Drops level
-	var flow=1;  // Stroke flow (efecto de presion mediante la aceleración)
-
-	var strokes = [];
-	var draw=false;
-	var shiftKey=false;
-	var controlKey=false;
-
-	var canvasWidth=1024;
-	var canvasHeight=900;
-
-	window.mouse={x:0,y:0};
-
-	ACCURATE=60;
-	ACCURATEcurr=0;
-
-	function keyPressed(event) {
-		if (event.shiftKey) 	shiftKey=true; 		else 	shiftKey=false;
-		if (event.ctrlKey) 		controlKey=true;	else 	controlKey=false;
-	}
-	window.addEventListener('keydown',keyPressed,false);
-	window.addEventListener('keyup'  ,keyPressed,false);
-
-	function init() {
-		layer = new Layer({
-			x:0,
-			y:0,
-			w:window.innerWidth,
-			h:window.innerHeight,
-			debug:false
-		});
-		layer.appendTo( document.body );
-		layerWithAlpha  = new Layer({
-			x:0,
-			y:0,
-			w:window.innerWidth,
-			h:window.innerHeight,
-			debug:false
-		});
-		layerWithAlpha.appendTo( document.body );
-		layerWithAlpha.domElm.style.opacity=1;
-
-		let tickFPS = new FPS('fps');
-		render = function() {
-			if (draw) {
-				drawing();
-			}
-			tickFPS.update();
-			setTimeout(render,1000/120);
-		}
-		render();
-
-		updateMouseEvent = function() {
-			window.mouse = new Vector( event.clientX - layer.x/layer.RETINA, event.clientY - layer.y/layer.RETINA);
-		}
-
-		window.addEventListener("mousedown", 	startDraw);
-		window.addEventListener("mouseup", 		stopDraw);
-		window.addEventListener("mousemove", 	updateMouseEvent);
-	}
-
-	function startDraw(event) {
-		updateMouseEvent(event);
-
-		stroke = []; // 0
-		d=brush.min;
-
-		drawing();
-		draw=true;
-	}
-
-	function drawing(last) {
-
-		var newPos = new Vector( window.mouse.x, window.mouse.y );
-
-		if (!last) {
-			// Controla el tiempo entre trazos para no crear más de los necesarios
-			var curTime=new Date().getTime();
-			if ( curTime < ACCURATEcurr+1000/ACCURATE ) 	{
-				return;
-			} else ACCURATEcurr=curTime;
-
-			if ( stroke.last() && Math.distance(stroke.last().p, newPos)<4 ) {
-				return;  // Don't draw if not movement
-			}
-		}
-
-		stroke.push({
-			p: newPos,
-			d: d
-		});// 1 ... n
-
-		if(stroke.length<3) {
-			return;
-		}
-
-		stroke.last().p = stroke.prior().p.lrp( stroke.last().p,.8); // Smooth positions
-
-		if (last) { // last Stroke
-
-			var p1 = stroke.in(-2).p.med( stroke.prior().p );
-			var pc = stroke.prior().p;
-			var p2 = stroke.last().p;
-
-		} else if (stroke.length==3) { // first stroke can be drawn
-
-			var p1 = stroke.in(-2).p;
-			var pc = stroke[1].p;
-			var p2 = stroke[1].p.med( stroke[2].p );
-
-		} else {
-
-			var p1 = stroke.in(-2).p.med( stroke.prior().p );
-			var pc = stroke.prior().p;
-			var p2 = stroke.last().p.med( stroke.prior().p );
-
-		}
-		var np = stroke.last().p;
-
-
-		var strokeDistance = Math.distance2(p1,pc)+Math.distance2(pc,p2);
-
-		if (stroke.length==3) {
-			acc = strokeDistance / brush.limiter;
-		}
-
-		acc += strokeDistance / brush.limiter;
-		acc = acc / brush.friction;
-		d = Math.lerp(stroke.prior().d, Math.clamp(Math.lerp( brush.min, brush.max, 1/acc), brush.min, brush.max), .4);
-
-		stroke.last().d = d;
-
-		var b  = new QuadBezier(p1,pc,p2);
-
-		var t  = b.closestTtoPc();
-		var pt = b.getPointAtT(t);
-
-		//layerWithAlpha.canvas.globalCompositeOperation = "destination-atop";
-
-		var strokeWeight = stroke.prior().d;
-		var p1n = b.normalUnitVectorAtT(0);
-		var p1L = p1.add( p1n.mul(+strokeWeight/2) );
-		var p1R = p1.add( p1n.mul(-strokeWeight/2) );
-
-		var strokeWeight = Math.lerp(stroke.prior().d, stroke.last().d, t);
-		var ptn = b.normalUnitVectorAtT(t);
-		var ptL = pt.add( ptn.mul(+strokeWeight/2) );
-		var ptR = pt.add( ptn.mul(-strokeWeight/2) );
-
-		var strokeWeight = stroke.last().d;
-		var p2n = b.normalUnitVectorAtT(1);
-		var p2L = p2.add( p2n.mul(+strokeWeight/2) );
-		var p2R = p2.add( p2n.mul(-strokeWeight/2) );
-
-		if (Math.abs(b.angDegrees())<120) { // IF the angle is closed
-
-			var p1c  = b.getControlPointOfASegment(0,t);
-			var b1   = new QuadBezier(p1,p1c,pt);
-			var p1m  = p1n.add(ptn);
-			var p1t  = Math.lerp( 0,t, b1.closestTtoPc() ); // Interpolate over 0-t (original bezier b) the t of p1 p1c pt
-			var strokeWeight = Math.lerp(stroke.prior().d, stroke.last().d, p1t); // Use that t to know the weight on that point
-			var p1cL = p1c.add( p1m.mul( +strokeWeight/p1m.length2() ) ); // Expand with that strokeWeight the bezier stroke
-			var p1cR = p1c.add( p1m.mul( -strokeWeight/p1m.length2() ) );
-
-			var p2c  = b.getControlPointOfASegment(t,1);
-			var b2   = new QuadBezier(pt,p2c,p2);
-			var p2m  = ptn.add(p2n);
-			var p2t  = Math.lerp( t,1, b2.closestTtoPc() );
-			var strokeWeight = Math.lerp(stroke.prior().d, stroke.last().d, p2t);
-			var p2cL = p2c.add( p2m.mul( +strokeWeight/p2m.length2() ) );
-			var p2cR = p2c.add( p2m.mul( -strokeWeight/p2m.length2() ) );
-
-			layerWithAlpha.canvas.strokeStyle="red";
-			layerWithAlpha.canvas.strokeWeight=2;
-			layerWithAlpha.canvas.fillStyle="black";
-			layerWithAlpha.canvas.beginPath();
-			layerWithAlpha.canvas.moveTo(p1L);
-			layerWithAlpha.canvas.quadraticCurveTo(p1cL, ptL);
-			layerWithAlpha.canvas.lineTo(ptR);
-			layerWithAlpha.canvas.quadraticCurveTo(p1cR, p1R);
-			layerWithAlpha.canvas.closePath();
-			layerWithAlpha.canvas.fill();
-//			layerWithAlpha.canvas.stroke();
-
-			layerWithAlpha.canvas.beginPath();
-			layerWithAlpha.canvas.moveTo(p2L);
-			layerWithAlpha.canvas.quadraticCurveTo(p2cL, ptL);
-			layerWithAlpha.canvas.lineTo(ptR);
-			layerWithAlpha.canvas.quadraticCurveTo(p2cR, p2R);
-			layerWithAlpha.canvas.closePath();
-			layerWithAlpha.canvas.fill();
-//			layerWithAlpha.canvas.stroke();
-
-		} else {
-			ptm  = p1n.add(p2n);
-			var strokeWeight = Math.lerp(stroke.prior().d, stroke.last().d, t);
-			ptcL = pc.add( ptm.mul( +strokeWeight/ptm.length2() ) );
-			ptcR = pc.add( ptm.mul( -strokeWeight/ptm.length2() ) );
-
-			layerWithAlpha.canvas.strokeStyle="red";
-			layerWithAlpha.canvas.strokeWeight=2;
-			layerWithAlpha.canvas.strokeStyle=undefined;
-			layerWithAlpha.canvas.fillStyle="black";
-			layerWithAlpha.canvas.beginPath();
-			layerWithAlpha.canvas.moveTo(p1L);
-			layerWithAlpha.canvas.quadraticCurveTo(ptcL, p2L);
-			layerWithAlpha.canvas.lineTo(p2R);
-			layerWithAlpha.canvas.quadraticCurveTo(ptcR, p1R);
-			layerWithAlpha.canvas.closePath();
-			layerWithAlpha.canvas.fill();
-//			layerWithAlpha.canvas.stroke();
-		}
-
-	}
-
-	function stopDraw(event) {
-
-		updateMouseEvent(event);
-		draw=false;
-
-		layer.canvas.globalAlpha = layerWithAlpha.domElm.style.opacity;
-		layer.copy(layerWithAlpha);
-		layer.canvas.globalAlpha = 1;
-		layer.canvas.globalCompositeOperation = "source-over";
-		layerWithAlpha.canvas.clearRect(0, 0, layerWithAlpha.w, layerWithAlpha.h);
-
-		d=brush.min;
-		acc=1000;
-		drawing(true); //Last
-	}
-
-	window.ready(init);
-
-</script>
-<style>
-	* {
-		margin: 0;
-		padding: 0;
-		  -webkit-user-select: none; /* Safari */
-		   -khtml-user-select: none; /* Konqueror HTML */
-			 -moz-user-select: none; /* Firefox */
-			  -ms-user-select: none; /* Internet Explorer/Edge */
-				  user-select: none; /* Non-prefixed version, currently supported by Chrome and Opera */
-	}
-	body {
-		overflow: hidden;
-		background-color: white;
-		font-family: sans-serif;
-	}
-	canvas {
-		border: 1px solid #f0f0f0;
-	}
-	#fps {
-		position: absolute;
-		font-weight: bold;
-		font-size: 16px;
-		left:10px;
-		top:10px;
-	}
-	.littletext{
-		position: absolute;
-		font-weight: normal;
-		font-size: 16px;
-		bottom: 10px;
-		left:10px;
-	}
-</style>
-</head>
-
+	<script config="config.js" src="./sktch/include.js"></script>
+	<script>
+		include("sketchmachine_variable_width_bezier_stroke", ["sktch"]);
+	</script>
 </head>
 <body>
 	<div id="debug"></div>
 	<div id="fps"></div>
 	<div class="littletext">Demonstration of the variable bezier strokes by offseting a quad bezier path.<br/>
-	Math papers at <a href="https://microbians.com/math">https://microbians.com/mathcode</a></div>
+	Math papers at <a href="https://microbians.com/math">https://microbians.com/math</a></div>
+	<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+		<defs>
+			<filter id="waves" color-interpolation-filters="linearRGB">
+				<feTurbulence type="turbulence" baseFrequency="0.01 0.01" numOctaves="1" seed="1" stitchTiles="stitch" result="turbulence"/>
+				<feDisplacementMap in="SourceGraphic" in2="turbulence" scale="20" xChannelSelector="G" yChannelSelector="A" result="displacementMap"/>
+		  	</filter>
+			<filter id="pen" color-interpolation-filters="linearRGB" filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse">
+				<feTurbulence type="turbulence" baseFrequency="1.01 5.01" numOctaves="1" seed="1" stitchTiles="stitch" result="turbulence"/>
+				<feDisplacementMap in="SourceGraphic" in2="turbulence" scale="10" xChannelSelector="G" yChannelSelector="R" result="displacementMap"/>
+		  	</filter>
+			<filter id="filterdance" x="-20%" y="-20%" width="140%" height="140%" filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse" color-interpolation-filters="linearRGB">
+				<feMorphology operator="dilate" radius="1 1" in="SourceAlpha" result="morphology"/>
+				<feComposite in="morphology" in2="SourceAlpha" operator="out" result="composite1"/>
+				<feTurbulence type="fractalNoise" baseFrequency="0.01 0.02" numOctaves="1" seed="0" stitchTiles="noStitch" result="turbulence"/>
+				<feDisplacementMap in="composite1" in2="turbulence" scale="17" xChannelSelector="A" yChannelSelector="A" result="displacementMap"/>
+				<feMerge result="merge">
+			    		<feMergeNode in="SourceGraphic" result="mergeNode"/>
+					<feMergeNode in="displacementMap" result="mergeNode1"/>
+			  	</feMerge>
+			</filter>
+			<filter id="filtercontour" x="-20%" y="-20%" width="140%" height="140%" filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse" color-interpolation-filters="linearRGB">
+	<feTurbulence type="turbulence" baseFrequency="0.015 0.015" numOctaves="3" seed="8" stitchTiles="stitch" result="turbulence"/>
+	<feMorphology operator="dilate" radius="35 35" in="turbulence" result="morphology"/>
+	<feColorMatrix type="matrix" values="1 0 0 0 0
+0 1 0 0 0
+0 0 1 0 0
+0 0 0 10 0" in="morphology" result="colormatrix"/>
+	<feColorMatrix type="saturate" values="10" in="colormatrix" result="colormatrix1"/>
+	<feComposite in="colormatrix1" in2="SourceAlpha" operator="in" result="composite"/>
+</filter>
+
+<filter id="filtersplash" width="150%" height="160%" x="-25%" y="-25%">
+<!-- COLORS -->
+  <feFlood flood-color="#16B5FF" result="COLOR-blue" />‚
+  <feFlood flood-color="#9800FF" result="COLOR-violet" />
+  <feFlood flood-color="#A64DFF" result="COLOR-violet-light" />
+<!-- COLORS END -->
+
+<!-- BOTTOM SPLASH -->
+  <feTurbulence baseFrequency="0.05" type="fractalNoise" numOctaves="1" seed="2" result="BOTTOM-SPLASH_10" />
+  <feGaussianBlur stdDeviation="6.5"  in="SourceAlpha" result="BOTTOM-SPLASH_20" />
+  <feDisplacementMap scale="420" in="BOTTOM-SPLASH_20" in2="BOTTOM-SPLASH_10" result="BOTTOM-SPLASH_30"/>
+  <feComposite operator="in" in="COLOR-blue" in2="BOTTOM-SPLASH_30" result="BOTTOM-SPLASH_40" />
+<!-- BOTTOM END -->
+
+<!-- MIDDLE SPLASH -->
+  <feTurbulence baseFrequency="0.1" type="fractalNoise" numOctaves="1" seed="1" result="MIDDLE-SPLASH_10" />
+  <feGaussianBlur in="SourceAlpha" stdDeviation="0.1" result="MIDDLE-SPLASH_20" />
+  <feDisplacementMap in="MIDDLE-SPLASH_20" in2="MIDDLE-SPLASH_10" scale="25" result="MIDDLE-SPLASH_30"/>
+  <feComposite in="COLOR-violet-light" in2="MIDDLE-SPLASH_30" operator="in" result="MIDDLE-SPLASH_40" />
+<!-- MIDDLE END -->
+
+<!-- TOP SPLASH -->
+  <feTurbulence baseFrequency="0.07" type="fractalNoise" numOctaves="1" seed="1" result="TOP-SPLASH_10" />
+  <feGaussianBlur stdDeviation="3.5" in="SourceAlpha" result="TOP-SPLASH_20" />
+  <feDisplacementMap scale="220" in="TOP-SPLASH_20" in2="TOP-SPLASH_10" result="TOP-SPLASH_30"/>
+  <feComposite operator="in" in="COLOR-violet" in2="TOP-SPLASH_30" result="TOP-SPLASH_40" />
+<!-- TOP END -->
+
+<!-- LIGHT EFFECTS -->
+  <feMerge  result="LIGHT-EFFECTS_10">
+	<feMergeNode in="BOTTOM-SPLASH_40" />
+	<feMergeNode in="MIDDLE-SPLASH_40" />
+	<feMergeNode in="TOP-SPLASH_40" />
+  </feMerge>
+  <feColorMatrix type="matrix"
+  values="0 0 0 0 0,
+  0 0 0 0 0,
+  0 0 0 0 0,
+  0 0 0 1 0" in="LIGHT-EFFECTS_10" result="LIGHT-EFFECTS_20" />
+  <feGaussianBlur stdDeviation="2" in="LIGHT-EFFECTS_20" result="LIGHT-EFFECTS_30" />
+  <feSpecularLighting surfaceScale="5" specularConstant=".75" specularExponent="30" lighting-color="#white" in="LIGHT-EFFECTS_30" result="LIGHT-EFFECTS_40">
+	<fePointLight x="-50" y="-100" z="400" />
+  </feSpecularLighting>
+  <feComposite operator="in" in="LIGHT-EFFECTS_40" in2="LIGHT-EFFECTS_20" result="LIGHT-EFFECTS_50"/>
+  <feComposite operator="arithmetic" k1="0" k2="1" k3="1" k4="0" in="LIGHT-EFFECTS_10" in2="LIGHT-EFFECTS_50" result="LIGHT-EFFECTS_60"/>
+</filter>
+<!-- LIGHT EFFECTS END -->
+
+
+		  </defs>
+	</svg>
 </body>
 </html>
